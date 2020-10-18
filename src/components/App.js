@@ -1,43 +1,71 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useCallback} from "react";
 import '../styles/App.css';
 import Header from './Header'
 import Categories from './Categories'
 import Games from './Games'
+import CONFIG from "../config";
+import Providers from "./Providers";
 
 
 const App = () => {
-    
+    const [loading, setLoading] = useState(true)
     const [gamesJson, setGamesJson] = useState([]);
-    const [topGames, setTopGames] = useState(false);
+    const [categoryNow, setCategoryNow] = useState('');
+
 
     useEffect(() => {
-       fetch(`https://57d10932-44d0-4d3a-98a9-6dda8c67bdd3.mock.pstmn.io/?liveCasinoOnly=true&categories=Live%20Casino&limit=25`)
+       fetch(`${CONFIG.API_HOST}&categories=Live%20Casino&limit=25&`)
         .then(response => response.json())
-        .then(response => setGamesJson(response))
+        .then(response => {
+            setGamesJson(response);
+            setLoading(false);
+        })
     }, [])
 
-   const selectCategorie = (categorie) => {
-       fetch(`https://57d10932-44d0-4d3a-98a9-6dda8c67bdd3.mock.pstmn.io/?liveCasinoOnly=true&categories=${categorie}&limit=25`)
+   const selectCategory = (category) => {
+       setGamesJson([]);
+       setLoading(true)
+       fetch(`${CONFIG.API_HOST}&categories=${category}&limit=25`)
         .then(response => response.json())
-        .then(response => setGamesJson(response))
+        .then(games => {
+            setLoading(false);
+            setGamesJson(games);
+         })
+        .catch(error => {
+            setLoading(false);
+            alert('Error');
+        })
     }
 
-    const handlerTopGames = (top) => {
-        setTopGames(top)
-    }
-   
     
+   
+    const onSelectCategory = useCallback((categoryName) => {
+        if(categoryName === 'Top') {
+            setCategoryNow(categoryName);
+            const filteredTop = gamesJson.filter(game => game.is_most_popular)
+            setGamesJson(filteredTop)
+            return
+        }
+            setCategoryNow(categoryName);
+            selectCategory(categoryName);
+            
+        
+    }, [ selectCategory ])
+
+
+    const onSelectProvider = (providerName) => {
+        
+        if(providerName === 'all') return selectCategory(categoryNow);
+        const filteredProvider = gamesJson.filter(game => game.game_provider === providerName);
+        setGamesJson(filteredProvider);
+    }
 
     return (
         <div>
             <Header />
-            <Categories selectCategorie={selectCategorie}
-                        handlerTopGames={handlerTopGames}
-                        
-                        />
-            <Games  gamesJson={gamesJson} 
-                    topGames={topGames}
-                    />
+            <Categories onSelectCategory={onSelectCategory} />
+            <Providers onSelectProvider={onSelectProvider} />
+            <Games  gamesJson={gamesJson} loading={loading}/>
         </div>
         );
     
